@@ -1,0 +1,330 @@
+%% Document class
+\documentclass[final,3p,times,twocolumn, 12pt]{elsarticle}    % two column format
+% \documentclass[preprint,review,12pt]{elsarticle}        % one column format
+
+%% Use package
+\usepackage{graphicx}
+\usepackage{epstopdf}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{amsmath}
+\usepackage{latexsym}
+\usepackage{mathrsfs}
+\usepackage[tight,nice]{units}
+\usepackage{harpoon}
+\usepackage{chemarrow}
+\usepackage{lineno}
+\usepackage{harpoon}
+\usepackage{chemarrow}
+\usepackage{lscape}
+\usepackage{color}
+\usepackage{lineno}
+\usepackage{colortbl}
+\usepackage{chngcntr}
+% \usepackage{etoolbin}
+\usepackage{tikz}
+\usepackage{enumitem}
+\usepackage{float}
+\usepackage{soul}
+\usepackage{url}
+\usepackage{xr}
+\usepackage{nomencl}
+\usepackage{xstring}
+\usepackage{xpatch}
+\usepackage{bm}
+
+% Figure sizes
+% Full textwidth for this template is ~ 6.47in
+% A single column width for the template is ~ 3.07in
+
+%% Change margins
+\geometry{top=1in, bottom=1in}
+
+%% Add line numbers
+% \linenumbers
+
+%% Submittal Material - Moves all figures to end of document
+% \usepackage{endfloat}
+
+%% Bib options
+% \biboptions{sort&compress}%,super}
+
+%% Cross referencing option
+\makeatletter
+\newcommand*{\addFileDependency}[1]{
+    \typeout{(#1)}
+    \@addtofilelist{#1}
+    \IfFileExists{#1}{}{\typeout{No file #1.}}  }
+
+\makeatother
+\newcommand*{\myexternaldocument}[1]{
+    \externaldocument{#1} 
+    \addFileDependency{#1.tex} 
+    \addFileDependency{#1.aux}  }
+    
+\myexternaldocument{supplementary}
+
+%% Eliminates automatic footer note
+\makeatletter
+\def\ps@pprintTitle{%
+  \let\@oddhead\@empty
+  \let\@evenhead\@empty
+  \let\@oddfoot\@empty
+  \let\@evenfoot\@oddfoot  }
+
+%% New commands
+\newcommand{\crr}[1]{\color{red} #1 \color{black}}
+\newcommand{\scd}[1]{\color{red} #1 \color{black}} % red field for edits
+
+%% Nomenclature - changed name, set groups
+% In the future, build this throughout the document because sorting is done automatically.
+% Just remember to put header letter followed by sorting name in optional argument.
+%   For an example, see end of the document.
+\renewcommand{\nomlabelwidth}{1.25cm}
+\setlength{\nomitemsep}{-\parsep}
+
+% \renewcommand{\nomname}{List of Symbols}
+
+% \patchcmd{\thenomenclature}
+%   {\leftmargin\nomlabelwidth}
+%   {\leftmargin\nomlabelwidth}
+%   {}{}
+
+% \newcommand{\nomenclheader}[1]{%
+%   \item[\hspace*{-\itemindent}\normalfont\bfseries#1]}
+% \renewcommand\nomgroup[1]{%
+%   \IfStrEqCase{#1}{%
+%    {A}{\nomenclheader{Roman Symbols}}%                  
+%    {B}{\\ \nomenclheader{Greek Symbols}}%                 
+%    {C}{\\ \nomenclheader{Subscripts and Superscripts}}%    
+%   }%
+% }
+  
+% \makenomenclature
+
+%% Begin document
+\begin{document}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Begin Frontmatter
+\begin{frontmatter}
+
+\title{Particle Tracking Methods for Precipitation Reactions in Lithium Batteries}
+
+\author[CSM]{Trenton Koberna}
+\author[CSM]{Steven C. DeCaluwe \corref{cor}}
+\cortext[cor]{Corresponding Author: Tel: (303) 273-3666}
+\ead{decaluwe@mines.edu}
+        
+\address[CSM]{Colorado School of Mines Department of Mechanical Engineering, 1500 Illinois St, Golden, CO 80401}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{abstract} 
+Precipitation and deposition reactions at solid-liquid interfaces play a key role in a number of advanced battery chemistries, including so-called `anode free' batteries, zinc-based battery chemistries, and lithium-sulfur, among others. Although models directly incorporating heterogeneous nucleation and growth phenomena are present in the literature, papers have not to date provided much detail on the numerical algorithms used to track the temporal evolution of the particle size distribution at electrode surfaces.  In this letter we examine several approaches to discretize and track the particle size distribution, demonstrating that common approaches lead to anomalous `flattening' of the particle size distribution.  We conclude by presenting an algorithm that preserves the appropriate particle size distribution during the particle growth phase. 
+\end{abstract}
+
+\begin{keyword}
+Heterogeneous Nucleation and Growth, Deposition reactions, Beyond-Li-ion batteries
+\end{keyword}
+
+\end{frontmatter}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Introduction}
+Precipitation and deposition reactions play key roles in a number of energy conversion and storage applications, including ``beyond Li-ion'' chemistries, intercalation-type Li-ion batteries, and electrochemical mineralization applications. Specific examples from battery storage include:
+    \begin{itemize}
+        \item \textit{Bulk solid storage}: In so-called `anode-free' batteries, Li metal is completely stripped during discharge, leaving a bare copper current collector.  During charging Li metal deposits nucleate and then grow on the copper~\cite{bib:Li-Cu_deposition}. The nucleation and growth dynamics significantly impact the Li morphology, which directly controls device degradation. \cite{bib:PSD_effects_Li}\cite{bib:PSD_effects_Li_2}\cite{bib:PSD_effects_Li_3}\cite{bib:PSD_effects_Li_4}
+        
+        \item \textit{Interfacial growth}: In batteries such as lithium-sulfur and lithium-oxygen, dissolved species in the liquid electrolyte are reduced, during discharge, depositing and growing on the cathode surface. The capacity and overall rate capability are rather sensitive to the precipitate nucleation density~\cite{bib:Li-S_deposition}\cite{bib:Li-S_deposition_2}\cite{bib:Li-O_deposition}\cite{bib:Li-air_deposition}.
+               
+        \item \textit{SEI formation}: The solid electrolyte interphase (SEI) forms via deposition of insoluble electrolyte degradation products, forming a multi-phase passivation layer on the anode surface. The number, size, and distribution of individual degradation products in the SEI, which determine the layer's ionic conductivity and long-term stability, are controlled by nucleation and growth phenomena~\cite{bib:SEI_deposition}\cite{bib:SEI_deposition_2}\cite{bib:SEI_deposition_3}\cite{bib:SEI_deposition_4}.
+    \end{itemize}
+
+Such deposition reactions proceed through two steps. The first step--nucleation of a new phase at the liquid-solid interface--creates new material interfaces (precipitate-substrate and precipitate-liquid), and therefore includes a significant energy barrier. The energy required for subsequent deposition on an existing precipitate (i.e. growth) is lower than that needed for nucleation. As such, nucleation typically requires supersatruation of the liquid solution, with the nucleation rate (and therefore the number of deposited nuclei) increasing with the degree of supersaturation.  After nucleation, growth proceeds quickly, with a rate that is proportional to the number of nuclei deposited. Because the energy barrier for growth is lower than that for nucleation, the degree of supersaturate typically decreases quickly during growth, such that nucleation rates are typically low during the growth phase.
+
+Correctly modeling deposition and  growth of precipitates is critical to understanding device performance, predicting long-term degradation, and designing efficient and durable devices. Numerous studies have incorporated heterogeneous nucleation and growth (HNG) kinetics into numerical simulations of device performance.\cite{bib:Model_ex_1}\cite{bib:Model_ex_2}\cite{bib:Model_ex_3}\cite{bib:Model_ex_4}\cite{bib:Model_ex_5}\cite{bib:Model_ex_6}\cite{bib:Model_ex_7}\cite{bib:Model_ex_8} \cite{bib:Model_ex_9}\cite{bib:Model_ex_10} However, there is less detail in the literature describing the method by which these models track the particle size distribution (PSD) in these systems. This letter evaluates some common approaches to PSD tracking and proposes an algorithm to rigorously track the PSD during HNG, using a simplified kinetic mechanism to more easily evaluate the PSD accuracy. 
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Model framework}
+\label{sect:model-framework}
+\subsection{Kinetic Model Assumptions}
+For easy-to-interpret results, we use herein a relatively simple kinetic model:
+\begin{itemize}
+    \item \emph{Nucleation phase}: Hemispherical nuclei with radius $r_{\rm nuc}=0.5$~nm are deposited from $t = 0$~s to $t = 0.5$~s.
+    \item \emph{Particle growth}: Once a particle is formed, it grows at a constant rate of $\frac{dr}{dt} = 0.25~\mu$m s$^{-1}$.
+\end{itemize}
+The growth rate is equivalent to a molar deposition rate of $\dot{q}_{\rm growth}^{\prime\prime}~=~2\times~10^{-3}$~mol~m$^{-2}$~s$^{-1}$. As depicted in Figure~\ref{fig:deposition}, the particle growth rate $\dot{q}_{\rm growth}^{\prime\prime}$ is per unit area between existing particles and the surrounding liquid solution. Although larger particles have more available surface area for growth (more mol per second deposited), this growth is also spread over that same area. We assume in this study that $\dot{q}_{\rm growth}^{\prime\prime}$ does not vary with particle size, which results in a $\frac{dr}{dt}$ that is also invariant with particle radius (as illustrated in Figure~\ref{fig:deposition}. Therefore, as particles grow, the PSD shape should not change, providing an easy metric to evaluate the internal consistency of the PSD tracking algorithm.
+
+\begin{figure}
+    \includegraphics[scale=0.5]{figures/particle_growing_at_size.pdf} 
+    \caption{Depiction of particle growth. We assume hemispherical particles and a constant molar deposition rate $\dot{q}_\mathrm{growth}^{\prime\prime}$. This results in a radial growth rate $\tfrac{dr}{dt}$ that does not depend on particle size, providing a simple means of evaluating the PSD tracking scheme's accuracy.}
+    \label{fig:deposition}
+\end{figure}
+
+\subsection{Algorithms for PSD Tracking} % Describe the model and show results 
+The model discretizes the PSD into uniform bins of fixed differential radius $\Delta r$. The following discussion focuses on particle growth, but the same principles apply to stripping reactions. Herein, we explore three separate PSD tracking algorithms:
+\subsubsection{Algorithm 1: Simple finite differencing}
+Our first approach used finite differencing to track the number of particles entering and exiting each bin. All bins have the same thickness $\Delta r_{\mathrm{bin}}$, and the centroid of each bin represents a fixed radius.  Therefore, at any point in time the variable $N_i$ in the solution vector represents the number density of particles with radius between $\Delta r \times i$ and $\Delta r \times (i+1)$.  The model is defined by a set of ordinary differential equations describing the temporal evolution of $N_i$ for $0\leq i \leq n_{\rm bins}$, where $\n_{\rm bins}$ is the total number of bins.  %During simulations, we assume the individual radii of particles in a single bin are evenly spaced. In post-processing, all particles in the same bin are assigned a single, average radius $r_i$. 
+The first bin is at index 0, and its radius is equal to the nucleation radius: $r_\mathrm{nuc}$. 
+\begin{equation}
+    r_0 = r_\mathrm{nuc}=\frac{\Delta r_\mathrm{bin}}{2}
+    \label{eq:r_0}
+\end{equation}
+Nucleation only occurs in bin 0. The rate of nucleation $\dot{q}_\mathrm{nuc}''$, and the fraction of the total surface area $f_A$ available for deposition (i.e. that fraction not already blocked by deposits) determine the particle deposition rate in this bin (particles per m$^2$ per s). Once deposited, particles grow.  These particles grow into bins with larger average radii, once their radius exceeds the value $\Delta r$. 
+
+When discretizing, we assume particles are evenly spaced throughout each bin, meaning $x\%$ of the bin width will contain $x\%$ of the particles. This allows us to equate fractional distances within bins to the fraction of the total particles in the bin which occupy that distance. If the particle radii grow by one-quarter of the thickness of a bin during a timestep ($\frac{dr}{dt}\Delta t=0.25\Delta r_\mathrm{bin}$), then one-quarter of the particles in the bin should exit to the next bin, during that time step. The number of particles leaving a bin is therefore equal to the radial growth rate divided by the bin thickness, times the number density of particles in the bin at time $t$. The differential equation for the number density of particles in bin $i=0$ is therefore:
+\begin{equation}
+     \frac{dN_0}{dt}=f_A\dot{q}_\mathrm{nuc}'' - \frac{\frac{dr}{dt}}{\Delta r_{\mathrm{bin}}}N_0(t)
+     \label{eq:bin 0 sfd}
+\end{equation}
+For radii larger than $r_{\rm nuc}+\frac{\Delta r}{2}$, there is no nucleation, only growth.  Particles `enter' each bin by growing too large for the preceding smaller bin, and particles in the bin `exit' by growing too large for the current bin and entering the next largest bin. Entry and exit rates follow from the logic laid out in eq.~\ref{eq:bin 0 sfd}. For a bin $i>0$, the rate of change of $N_i$ is therefore: %The flux of particles outgrowing bin $i$ is equal and opposite to the flux of particles entering bin $i+1$. The same fraction of particles will be displaced from all intermediate bins as a consequence of uniform radial growth. 
+\begin{equation} 
+     \frac{dN_i}{dt}=\frac{\frac{dr}{dt}}{\Delta r_{\mathrm{bin}}}\left(N_{i-1} - N_{i}\right)
+     \label{eq:bin i sfd}
+\end{equation}
+The total number of bins and the thickness of each bin determine the average radius of the largest bin, $i=n_{\rm bins}$. 
+\begin{equation}
+    r_{\rm max} = \Delta r\times n_{\rm bins}
+    \label{eq:r_max}
+\end{equation}
+No particles can exit this bin, leading to the following differential equation:
+\begin{equation}
+    \frac{dN_N}{dt}=\frac{\frac{dr}{dt}}{\Delta r_{\mathrm{bin}}}N_{n_{\rm bins}-1}
+    \label{eq:bin N sfd}
+\end{equation}
+Consequently, the largest bin is not intended to contain an appreciable number of particles. If it does, that is a signal that more bins are needed for the simulation.
+
+\begin{figure}[b!]
+    \includegraphics[scale=1]{figures/Plot with inset.pdf} 
+    \caption{Simulated PSD snapshots using Algorithm 1: simple finite differencing. Non-dimensional time $\hat{t}$ is scaled by the total simulation time (4 s). The observed `flattening' of the PSD shape with time is inconsistent with the model assumptions, and the maximum radius far exceeds the theoretical maximum of 1 $\mu$m (see inset), revealing shortcomings in this model approach.}
+    \label{fig:init_model}
+\end{figure}
+The simulation results for Algorithm 1 are shown in Figure \ref{fig:init_model}. The figure shows four PSD snapshots, each as a non-dimensional time $\hat{t}$ that has been normalized by the total simualtion time (4s). The rate of nucleation is constant and stops one eighth of the way through the four-second simulation. The growth rate is constant throughout the simulation, which implies that the total number density of particles is the same for all four profiles in the figure. The PSD in Figure \ref{fig:init_model} does not maintain a constant profile, widening and flattening with time, indicating inconsistency with the underlying model assumptions. This indicates that particles are prematurely exiting the leading bin and lingering in trailing bins. Moreover, while the constant growth rate $\frac{dr}{dt} = 0.25 \mu$m s$^{-1}$ implies a maximum radius of 1 $\mu$m after the 4s long simulation, we observe a significant population of particles with $r > 1 \mu$, with a small number of particles with $r = 2 \mu$m (see inset).  Similarly, at the trailing edge, the last nuclei formed at $\hat{t} = \frac{1}{8}$ should have a radius of 0.875 $\mu$m at $\hat{t}=1$. Instead, Figure~\ref{fig:init_model} shows an appreciabnle portion of the PSD with $r \leq 0.75 \mu$m.
+
+The errors of the current algorithm are due to homogenization within the spatial mesh: for a bin $i$, the algorithm does not discriminate between particles that are barely larger than $r_i - \frac{\Delta r}{s}$ and those that are barely smaller than $r_i + \frac{\Delta r}{2}$. In any bin, entering particles should be required to grow by $\Delta r$ before they can exit. Instead, homogenization in algorithm 1 dictates that as soon as $N_i > 0$ for a bin $i$, a fraction of the particles are immediately eligible to grow out of the bin and into bin $i+1$. In the trailing bin, the only way all of the particles will leave a bin is if radial growth during a time step, $\frac{dr}{dt}\Delta t$, exceeds $\Delta r$. Otherwise, some fraction of the particles will always remain, reminiscent of Zeno's paradox.
+
+\subsubsection{Algorithm 2: `Bookmarking' the PSD upper and lower limits}
+To enforce maximum and minimum radii consistent with the model assumptions, algorithm 2 includes leading and trailing ``bookmarks" that track the smallest and largest particle radii respectively. The leading bookmark, $r_\mathrm{lbm}$, prevents particles from prematurely exiting the largest occupied bin, and the trailing bookmark, $r_\mathrm{tbm}$, prevents particles from remaining in the trailing bin for longer than the pre-defined residence time. Both bookmarks begin at $r_0$ and advance at the radial growth rate. The leading bookmark starts moving immediately, and the trailing bookmark begins moving once nucleation ceases. The simulation uses modulus division to track which bins contain the bookmarks. Each bookmark introduces two unique particle flux equations. One for when a bookmark advances to the next bin and one for when it moves within a bin. Equations~\ref{eq:bin 0 sfd},~\ref{eq:bin i sfd}, and~\ref{eq:bin N sfd} still apply to bins that do not contain any bookmarks at time $t$.\\
+
+The leading bookmark regulates the particle flux leaving the largest occupied bin, referred to as the leading bin. When the leading bookmark moves within a bin, no particles leave the bin. Particles enter from the previous bin as they did in equation \ref{eq:bin i sfd}.
+\begin{equation}
+    \frac{dN_i}{dt}=\frac{\frac{dr}{dt}}{\Delta r_{\mathrm{bin}}}N_{i-1}
+    \label{eq:bin i lbm stays}
+\end{equation}
+\begin{equation}
+    \frac{dN_{i+1}}{dt}=0
+     \label{eq:bin i+1 lbm stays}
+\end{equation}
+\begin{figure}
+    \centering
+    \includegraphics[scale=0.4]{figures/Leading_BM_stays.png}
+    \caption{The leading bookmark starts and ends in bin $i$. Each row depicts the same set of bins at different stages of a single timestep. The top is the initial state, the middle is the change, and the bottom is the final state. The bookmark moves at the radial growth rate and its progress in single timestep is $dr$. The patterned fill marks the portion of particles that begin the timestep in the leading bin. The leading bookmark is preventing particles from prematurely exiting the bin.}
+    \label{fig:LBM_stays}
+\end{figure}
+The modifications introduced in equations \ref{eq:bin i lbm stays} and \ref{eq:bin i+1 lbm stays} address the runaway `forward diffusion' of particles observed in Figure~\ref{fig:init_model}. In Figure ~\ref{fig:LBM_stays}, the vertical yellow line marks the location of the leading bookmark. A patterned fill shows the section of particles that began the timestep in the leading bin.\\
+
+The bookmark position reflects the fact that particles do not occupy all radii equally within the leading bin. Only the portion of the leading bin before the bookmark is occupied by particles. Particles will not leave a bin until the leading bookmark advances to the next bin. When this occurs, the fraction of particles leaving along with equal the distance that the bookmark extends into the subsequent bin at the end of the timestep, divided by the distance the bookmark extends into the current bin at the start of the timestep. Particles enter from the previous bin as they did in equation \ref{eq:bin i sfd}.
+\begin{equation}
+     \frac{dN_i}{dt}=\frac{\frac{dr}{dt}}{\Delta r_{\mathrm{bin}}}N_{i-1} - \frac{\frac{dr}{dt}-(\Delta r_{\mathrm{bin}}-r_\mathrm{lbm})}{r_\mathrm{lbm}}N_{i}
+      \label{eq:bin i lbm leaves}
+\end{equation}
+\begin{equation}
+    \frac{dN_{i+1}}{dt}=\frac{\frac{dr}{dt}-(\Delta r_{\mathrm{bin}}-r_\mathrm{lbm})}{r_\mathrm{lbm}}N_{i}
+    \label{eq:bin i+1 lbm leaves}
+\end{equation}
+\begin{figure}[h]
+    \centering
+    \includegraphics[scale=0.4]{figures/Leading_BM_leaves.png}
+    \caption{The leading bookmark starts in bin $i$ and ends in bin $i+1$. $r_\mathrm{lbm}$ is the distance the bookmark extends into the leading bin, measured from the left. The patterned fill is now two tone. The darker portion of the fill with the reverse stripes denotes the fraction of the particles that advance from bin $i$ to bin $i+1$. The fraction of particles that left the leading bin is equal to the darker patterned portion divided by the entire patterned portion.}
+    \label{fig:LBM_leaves}
+\end{figure}
+The distance between the leading bookmark and the left side of the largest inhabited bin has a patterned fill in Figure \ref{fig:LBM_leaves} and is denoted by $r_\mathrm{lbm}$ in equations \ref{eq:bin i lbm leaves} and \ref{eq:bin i+1 lbm leaves}. Due to the shift of $\frac{dN}{dt} = 0$ to $\frac{dN_i}{dt} > 0$ when the leading bookmark crosses into a bin $i$, the solver takes smaller time steps when a bookmark is close to leaving a bin, and the largest bin is almost completely filled before the leading bookmark advances bins. The size of the time steps is governed by the absolute and relative tolerances of the solver.\\
+The trailing bookmark pushes particles along so they do not reside in the trailing bin for longer than the prescribed residence time, $\frac{\Delta r}{\frac{dr}{dt}}$. When the trailing bookmark advances out of a bin, all of the particles in the trailing bin advance with it:
+\begin{equation}
+    \frac{dN_i}{dt}=-N_i
+    \label{eq:bin i tbm leaves}
+\end{equation}
+\begin{equation}
+    \frac{dN_{i+1}}{dt}=N_i-\frac{\frac{dr}{dt}}{\Delta r_{\mathrm{bin}}}N_{i+1}
+    \label{eq:bin i+1 tbm leaves}
+\end{equation}
+\begin{figure}[h]
+    \centering
+    \includegraphics[scale=0.4]{figures/Trailing_BM_leaves.png}
+    \caption{The trailing bookmark starts in bin $i$  and ends in bin $i+1$. $r_\mathrm{tbm}$ is also defined as he distance the bookmark extends into the bin from the left. The trailing bookmark ensures that all particles leave the trailing bin. \textcolor{red}{add $r_{tbm}$ to the graphic}}
+    \label{fig:TBM_leaves}
+\end{figure}
+When the trailing bookmark moves within a bin, the fraction of particles that outgrow that bin equals the distance the radius grew in that timestep divided by the distance between the right edge of the bin and the bookmark at the start of the timestep.
+\begin{equation}
+    \frac{dN_i}{dt}=-\frac{\frac{dr}{dt}}{\Delta r_{\mathrm{bin}}-r_\mathrm{tbm}}N_{i}
+\end{equation}
+\begin{equation}
+    \frac{dN_{i+1}}{dt}=\frac{\frac{dr}{dt}}{\Delta r_{\mathrm{bin}}-r_\mathrm{tbm}}N_{i}-\frac{\frac{dr}{dt}}{\Delta r_{\mathrm{bin}}}N_{i+1}
+\end{equation}
+\begin{figure}[h]
+    \centering
+    \includegraphics[scale=0.4]{figures/Trailing_BM_stays.png}
+    \caption{The trailing bookmark begins in bin $i$ and ends in bin $i+1$. The bookmark moves a distance of $dr$ during the timestep, so the distance particles are displaced is also $dr$. The trailing bookmark adjusts denominator in the expression for the particle flux leaving the trailing bin. The fraction of particles that left the leading bin is equal to the darker patterned portion divided by the entire patterned portion.}
+    \label{fig:TBM_stays}
+\end{figure}
+\begin{figure}[h]
+    \centering
+    \includegraphics[scale=1]{figures/with_bms_constant_rate.png}
+    \caption{Four snapshots of the PSD during a simulation using Algorithm 2: `Bookmarks,' and a constant nucleation rate. Bookmarks halt the leakage of particles show in Figure ~\ref{fig:init_model}.}
+    \label{fig:PSD_BM_constant}
+\end{figure}
+\begin{figure}[h]
+    \centering
+    \includegraphics[scale=1]{figures/with_bms_chaning_rate.png}
+    \caption{Four snapshots of the PSD during a simulation using Algorithm 2: `Bookmarks,' and a variable nucleation rate. Here, the bookmarks enforce the correct minimum and maximum radius. However, the PSD `flattening' from Figure~\ref{fig:init_model} is contained by the bookmarks, but still occurs between these limits.}
+    \label{fig:PSD_BM_chainging}
+\end{figure}
+The simulation for Figure \ref{fig:PSD_BM_constant} used a constant rate of nucleation while the simulation for Figure \ref{fig:PSD_BM_chainging} varied the rate of nucleation with time. Both simulations had constant growth rates and stopped nucleating one eighth of the way into the simulation. The profile widths in both Figures ~\ref{fig:PSD_BM_constant} and ~\ref{fig:PSD_BM_chainging} are invariant with time. So, the addition of bookmarks did prevent leakage of particles from the leading and trailing bins. However, PSD profile still changes with time in Figure ~\ref{fig:PSD_BM_chainging}. This flattening of particles within the bounds of the PSD in Figure \ref{fig:PSD_BM_chainging} stems from the assumption that particles are evenly distributed within bins. Each section of particles that outgrow their current bin spread evenly throughout their new bin.
+\subsubsection{Algorithm 3: The `moving hopper' model}
+Reducing the thickness of each bin would only mitigate the flattening, and adding bookmarks for each bin would be computationally intensive. So, we returned to the drawing board and rethought the model structure, using the same kinetic assumptions. \\
+Nucleation is the sole mechanism capable of establishing or altering the shape of the PSD. Growth will linearly shift the entire profile while maintaining constant relative spacing between particles. Initially, we attempted to model this linear shift by moving particles between the bins. The flattening could be prevented by restricting the solver so the growth rate is equal to the bin thickness for every time step. However, it is more efficient to move the entire set of bins as a unit. Once particles are deposited, they do not move between bins. \\
+One way to visualize the deposition process is as a hopper above a conveyor belt. The hopper is positioned at the start of the belt and the nucleation rate determines how many particles flow through the hopper into the bins below. As the particles grow, the conveyor belt moves the bins down the line and new bins are placed under the hopper.\begin{figure}[h]
+    \centering
+    \includegraphics[scale=0.5]{figures/Conveyorbelt.png}
+    \caption{A static hopper deposits particles while bins move on a semi-infinite conveyor belt below. All particles are deposited at the nucleation radius, and grow at the same rate, $\frac{dr}{dt}$. The radius of each bin change as the particles grow. This rethinking of the simulation circumvents the issue of PSD distortion by moving the bins instead of moving particles between bins. }
+    \label{fig:conveyorbelt}
+\end{figure}
+In Figure \ref{fig:conveyorbelt}, empty bins are placed under the hopper as soon as there is space for them. The current bins move down the conveyor belt at the radial growth rate. The radius of particles in the first bin directly under the hopper is $r_\mathrm{nuc}$. The radius of each subsequent bin is calculated by adding the width of a bin to the radius of the previous bin. Translating this setup into code would require the state variable containing the bins to be dynamic array. \\
+\begin{figure}[h]
+    \centering
+    \includegraphics[scale=0.5]{figures/Moving_hopper.png}
+    \caption{The hopper moves along semi-infinite tracks above unmoving boxes. The foundational concepts are the same as in Figure~\ref{fig:conveyorbelt}, but this set up is easier to translate into code. The rightmost bin will always have the largest radius, and hopper always deposits particles at the nucleation radius.}
+    \label{fig:Moving_Hopper}
+\end{figure}
+Instead of moving the bins, we could move the hopper. In Figure \ref{fig:Moving_Hopper}, the hopper begins at the far left at $t_0$, and moves to the right at the particles growth rate. A local coordinate system moves with the hopper. Whichever bin is directly underneath it at the time will have radius $r_\mathrm{nuc}$. Changing to a local coordinate system requires more post-processing, but it reduces the complexity of the residual. The only two pieces of information needed by the residual are the radial growth since $t_0$, and the rate of nucleation. 
+\begin{figure}[h]
+    \centering
+    \includegraphics[scale=1]{figures/PSD_moving_hopper.pdf}
+    \caption{Four snapshots of the PSD during a simulation using Algorithm 3 and a variable rate of nucleation. The PSD is invariant, and moves at the radial growth rate.}
+    \label{fig:PSD_cb}
+\end{figure}
+The shape of the PSD in Figure ~\ref{fig:PSD_cb} is invariant because the first snapshot is from when nucleation stops at $\hat{t}=0.125$. The radius of particles in the largest bin lines up with the value of $\hat{t}$ as it does in Figures ~\ref{fig:PSD_BM_constant} and ~\ref{fig:PSD_BM_chainging}. This is because the leading bookmark from Algorithm 2 is repurposed to track the radial growth.
+\subsection{Discussion}
+Our initial attempts at tracking particle growth resulted in flattening between bins that distorted the PSD. The moving hopper model controls which bin particles are deposited into instead of moving particles between bins. It also only requires one differential equation. The code for the three algorithms is available on GitHub at -------. \\ 
+Our model assumes particles deposit and grow as hemispheres with a uniform radial growth rate for all particles, but the implications of our findings are relevant even if the radial growth rate is a function of radius, or the shapes of the particles are not uniform. Any finite differencing scheme that moves particles between discrete bins will cause the PSD to flatten over time.
+\begin{figure}[h]
+    \centering
+    \includegraphics[scale=0.5]{figures/BM_all.png}
+    \caption{All bookmarks in one figure}
+    \label{fig:BM_all}
+\end{figure}
+
+\begin{figure}
+    \centering
+    \includegraphics[scale=1]{figures/PSD_with_bms.pdf}
+    \caption{Combined Figures \ref{fig:PSD_BM_constant} and  \ref{fig:PSD_BM_chainging}}
+    \label{fig:PSD_bms}
+\end{figure}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% References
+\bibliographystyle{unsrt}
+\bibliography{bibliography}
+
+\end{document}
