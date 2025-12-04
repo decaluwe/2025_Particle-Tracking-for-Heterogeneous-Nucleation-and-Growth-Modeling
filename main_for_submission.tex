@@ -1,10 +1,11 @@
 %% Document class
-\documentclass[final,3p,times,twocolumn, 12pt]{elsarticle}    % two column format
+\documentclass[final,3p,times,twocolumn, 12pt]{elsarticle}
+% two column format
 % \documentclass[preprint,review,12pt]{elsarticle}        % one column format
 
 %% Use package
 \usepackage{graphicx}
-\usepackage{epstopdf}
+%\usepackage{epstopdf}
 \usepackage{amssymb}
 \usepackage{amsthm}
 \usepackage{amsmath}
@@ -32,6 +33,8 @@
 \usepackage{xstring}
 \usepackage{xpatch}
 \usepackage{bm}
+\usepackage{lineno}
+\linenumbers
 
 \usepackage[hidelinks]{hyperref}
 \biboptions{super,sort&compress}
@@ -39,12 +42,6 @@
 \newcommand{\bluelink}[2]{%
   \href{#1}{\textcolor{blue}{#2}}%
 }
-
-
-\makeatletter
-\renewcommand\@cite[2]{{\hyper@linkstart{cite}{#1}\textsuperscript{[#1]}\hyper@linkend}}
-\makeatother
-
 % Figure sizes
 % Full textwidth for this template is ~ 6.47in
 % A single column width for the template is ~ 3.07in
@@ -113,18 +110,17 @@
 % }
   
 % \makenomenclature
-\newpageafter{title}
+
+\newpageafter{author}
+
 %% Begin document
 \begin{document}
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% Begin Frontmatter
 \begin{frontmatter}
-\newpageafter{abstract}
 
 \title{Particle Tracking Methods for Battery Precipitation Reactions}
 
-\author[CSM]{Trenton Koberna}
+\author[CSM]{Trent Koberna}
 \author[CSM]{Steven C. DeCaluwe \corref{cor}}
 \cortext[cor]{Corresponding Author: Tel: (303) 273-3666}
 \ead{decaluwe@mines.edu}
@@ -132,23 +128,32 @@
 \address[CSM]{Colorado School of Mines Department of Mechanical Engineering, 1500 Illinois St, Golden, CO 80401}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-Precipitation and deposition reactions at solid-liquid interfaces play a key role in a number of battery chemistries, including Li-ion, so-called `anode free' batteries, zinc-based battery chemistries, and lithium-sulfur, among others. Although models with heterogeneous nucleation and growth phenomena are present in the literature, papers have not to date provided much detail on the numerical algorithms used to track the temporal evolution of the particle size distribution of deposits on electrode surfaces.  In this letter we examine several approaches to discretize and track the particle size distribution, demonstrating that common approaches lead to anomalous `flattening' of the particle size distribution.  We conclude by presenting an algorithm that preserves the appropriate particle size distribution during particle growth. 
-\end{abstract}
 
-\begin{keyword}
-Heterogeneous Nucleation and Growth, Deposition reactions, Batteries
-\end{keyword}
 
 \end{frontmatter}
+\onecolumn
+\noindent Precipitation and deposition reactions at solid-liquid interfaces play a key role in a number of battery chemistries, including Li-ion, so-called `anode free' batteries, zinc-based battery chemistries, and lithium-sulfur, among others. Although models with heterogeneous nucleation and growth phenomena are present in the literature, papers have not to date provided much detail on the numerical algorithms used to track the temporal evolution of the particle size distribution of deposits on electrode surfaces.  In this letter we examine several approaches to discretize and track the particle size distribution, demonstrating that common approaches lead to anomalous `flattening' of the particle size distribution.  We conclude by presenting an algorithm that preserves the appropriate particle size distribution during particle growth.\\ 
+\\ 
+\noindent \textit{Keywords:} Heterogeneous Nucleation and Growth, Deposition reactions, Batteries\\
+\\ 
+\noindent TOC Graphic
+\begin{center}
+    \includegraphics[scale=1]{figures/TOC.pdf}
+\end{center}
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+
+\newpage
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \section{Introduction}
-Precipitation and deposition reactions play key roles in a number of battery applications, including both intercalation-type Li-ion batteries and ``beyond Li-ion'' chemistries. Specific examples include:
+Precipitation and deposition reactions play key roles in a number of battery applications, including both intercalation-type Li-ion  and ``beyond Li-ion'' batteries. Specific examples include:
     \begin{itemize}
         \item \textit{Bulk solid storage}: During charging in so-called `anode-free' batteries, Li metal deposits nucleate and then grow on a bare copper current collector~\cite{bib:Li-Cu_deposition}. The nucleation and growth dynamics significantly impact the Li morphology, which directly controls device durability. \cite{bib:PSD_effects_Li,bib:PSD_effects_Li_2,bib:PSD_effects_Li_3,bib:PSD_effects_Li_4,bib:Model_ex_1}
         
-        \item \textit{Interfacial growth}: In `beyond Li-ion' batteries such as lithium-sulfur and lithium-oxygen, dissolved liquid electrolyte species are reduced during discharge, depositing and growing on the cathode surface. The capacity and overall rate capability are sensitive to the precipitate nucleation density~\cite{bib:Li-S_deposition,bib:Li-S_deposition_2,bib:Li-O_deposition,bib:Li-air_deposition,bib:Model_ex_2,bib:Model_ex_8}.
+        \item \textit{Interfacial growth}: In batteries such as lithium-sulfur and lithium-oxygen, dissolved liquid electrolyte species are reduced during discharge, depositing and growing on the cathode surface. The capacity and rate capability are sensitive to the precipitate nucleation density~\cite{bib:Li-S_deposition,bib:Li-S_deposition_2,bib:Li-O_deposition,bib:Li-air_deposition,bib:Model_ex_2,bib:Model_ex_8}.
                
         \item \textit{SEI formation}: The solid electrolyte interphase (SEI) is a multi-phase passivation layer on the anode surface, formed via deposition of insoluble electrolyte degradation products. The number, size, and distribution of individual phases determine the layer's ionic conductivity and long-term stability and are controlled by nucleation and growth phenomena~\cite{bib:SEI_deposition,bib:SEI_deposition_2,bib:SEI_deposition_3}.
     \end{itemize}
@@ -166,9 +171,10 @@ For easy-to-interpret results, we use a relatively simple kinetic model:
     \item \emph{Nucleation phase}: Hemispherical nuclei with radius $r_{\rm nuc}=0.5$~nm are deposited at a rate $\dot{q}_\mathrm{nuc}''$ from $t = 0$~s to $t = 0.5$~s.
     \item \emph{Particle growth}: Once a particle is formed, it grows at a constant rate of $\frac{dr}{dt} = 0.25~\mu$m s$^{-1}$.
 \end{itemize}
-This growth rate is equivalent to a deposition rate of $\dot{q}_{\rm growth}^{\prime\prime}~=~2\times~10^{-3}$~mol~m$^{-2}$~s$^{-1}$. As depicted in Figure~\ref{fig:deposition}, the particle growth rate $\dot{q}_{\rm growth}^{\prime\prime}$ is per unit area between existing particles and the surrounding liquid solution. Although larger particles have more available surface area for growth (more mol per second deposited), this growth is also spread over that same area. In this study, we assume that $\dot{q}_{\rm growth}^{\prime\prime}$ does not vary with particle size, which results in a $\frac{dr}{dt}$ that is also invariant with particle radius (as illustrated in Figure~\ref{fig:deposition}). Therefore, as particles grow, the PSD shape should not change, providing an easy metric to evaluate the internal consistency of the PSD tracking algorithm.
+This growth rate is equivalent to a deposition rate of $\dot{q}_{\rm growth}^{\prime\prime}~=~2\times~10^{-3}$~mol~m$^{-2}$~s$^{-1}$. As shown in Figure~\ref{fig:deposition}, $\dot{q}_{\rm growth}^{\prime\prime}$ is per unit area between existing particles and the surrounding liquid solution. Although larger particles have more available surface area for growth (more mol per second deposited), this growth is also spread over that same area. In this study, we assume that $\dot{q}_{\rm growth}^{\prime\prime}$ does not vary with particle size, which results in a $\frac{dr}{dt}$ that is also invariant with particle radius (as illustrated in Figure~\ref{fig:deposition}). Therefore, as particles grow, the PSD shape should not change, providing an easy metric to evaluate the internal consistency of the PSD tracking algorithm.
 
 \begin{figure}
+    \centering
     \includegraphics[scale=0.5]{figures/particle_growing_at_size.pdf} 
     \caption{Herein, we assume hemispherical particles and a constant molar deposition rate $\dot{q}_\mathrm{growth}^{\prime\prime}$. This results in a radial growth rate $\tfrac{dr}{dt}$ that does not depend on particle size, providing a simple means of evaluating the PSD tracking scheme's accuracy.}
     \label{fig:deposition}
@@ -185,17 +191,17 @@ The first bin's radius equals the nucleation radius: $r_\mathrm{nuc}$.
 \end{equation}
 Nucleation only occurs in bin 0. The nucleation rate $\dot{q}_\mathrm{nuc}''$, and the fraction of the total surface area $f_A$ available for deposition (i.e. that fraction not already blocked by deposits) determine the particle deposition rate in this bin (particles per m$^2$ per s). Once deposited, particles grow, leaving bin 0 and entering bins with larger average radii, once their radius exceeds the value $\Delta r$. 
 
-When discretizing, we assume particles are evenly spaced throughout each bin, meaning $x\%$ of the bin width will contain $x\%$ of the $N_i$ particles in bin $i$. Therefore fractional distances within bins equal the fraction of the total particles in the bin which occupy that distance. If the particle radii grow by one-quarter of the thickness of a bin during a timestep ($\frac{dr}{dt}\Delta t=0.25\Delta r_\mathrm{bin}$), then one-quarter of the particles in the bin should exit to the next bin, during that time step. The number of particles leaving a bin is therefore equal to the radial growth rate divided by the bin thickness, times the number density of particles in the bin at time $t$. The differential equation for the number density of particles in bin $i=0$ is therefore:
+When discretizing, particles are evenly spaced within a bin, meaning $x\%$ of the bin width contains $x\%$ of the $N_i$ particles in bin $i$. Fractional distance within a bin therefore equals the fraction of the  particles in the bin that occupy that distance. If the particle radii grow by one-quarter of the thickness of a bin during a timestep ($\frac{dr}{dt}\Delta t=0.25\Delta r_\mathrm{bin}$), then one-quarter of the particles in the bin should exit to the next bin, during that time step. The number of particles leaving a bin is therefore equal to the radial growth rate divided by the bin thickness, times the number density of particles in the bin. The differential equation for the number density of particles in bin $i=0$ is therefore:
 \begin{equation}
      \frac{dN_0}{dt}=f_A\dot{q}_\mathrm{nuc}'' - \frac{\frac{dr}{dt}}{\Delta r_{\mathrm{bin}}}N_0,
      \label{eq:bin 0 sfd}
 \end{equation}
-where the fraction of available surface area $f_A = 1 - N_0 \pi r_{\rm nuc}^2$.  For bins with radii larger than $r_{\rm nuc}+\frac{\Delta r}{2}$, there is no nucleation, only growth.  Particles `enter' each bin by growing too large for the preceding smaller bin, and particles in the bin `exit' by growing too large for the current bin and entering the next largest bin. Entry and exit rates follow the logic laid out in eq.~\ref{eq:bin 0 sfd}. For a bin $i>0$, the rate of change of $N_i$ is therefore: %The flux of particles outgrowing bin $i$ is equal and opposite to the flux of particles entering bin $i+1$. The same fraction of particles will be displaced from all intermediate bins as a consequence of uniform radial growth. 
+where the fraction of available surface area $f_A = 1 - N_0 \pi r_{\rm nuc}^2$.  For bins with radii larger than $r_{\rm nuc}+\frac{\Delta r}{2}$, there is no nucleation, only growth.  Particles `enter' a bin by growing too large for the preceding smaller bin, and particles  `exit' by growing too large and entering the next largest bin. Entry and exit rates follow the logic laid out in eq.~\ref{eq:bin 0 sfd}. For a bin $i>0$, we therefore have: %The flux of particles outgrowing bin $i$ is equal and opposite to the flux of particles entering bin $i+1$. The same fraction of particles will be displaced from all intermediate bins as a consequence of uniform radial growth. 
 \begin{equation} 
      \frac{dN_i}{dt}=\frac{\frac{dr}{dt}}{\Delta r_{\mathrm{bin}}}\left(N_{i-1} - N_{i}\right)
      \label{eq:bin i sfd}
 \end{equation}
-The total number of bins and the thickness of each bin determine the average radius of the largest bin, $i=n_{\rm bins}$. 
+The total number of bins and the bin thickness therefore determine the average radius of the largest bin, $i=n_{\rm bins}$. 
 \begin{equation}
     r_{\rm max} = \Delta r\times n_{\rm bins}
     \label{eq:r_max}
@@ -208,16 +214,17 @@ No particles can exit this bin, leading to the following differential equation:
 Consequently, the largest bin is not intended to contain an appreciable number of particles. If it does, that is a signal that more bins are needed for the simulation.
 
 \begin{figure}[b!]
+    \centering
     \includegraphics[scale=1]{figures/Plot with inset.pdf} 
     \caption{Simulated PSD snapshots using Algorithm 1: simple finite differencing. Non-dimensional time $\hat{t}$ is scaled by the total simulation time (4 s). The observed `flattening' of the PSD shape with time is inconsistent with the model assumptions, and the maximum radius far exceeds the theoretical maximum of 1 $\mu$m (see inset), revealing shortcomings in this model approach.}
     \label{fig:init_model}
 \end{figure}
 The simulation results for Algorithm 1 are shown in Figure \ref{fig:init_model}. The figure shows four PSD snapshots, each as a function of non-dimensional time $\hat{t}$, normalized by the total simulation time (4s). The nucleation rate is constant and stops at $\hat{t}=\frac{1}{8}$. Even though the growth rate is the same for all particles, regardless of radius, the PSD in Figure~\ref{fig:init_model} widens and flattens with time, indicating inconsistency with the underlying model assumptions. Particles prematurely exit the leading bin and linger in trailing bins. Moreover, while the constant growth rate $\frac{dr}{dt} = 0.25\, \mu$m s$^{-1}$ implies a maximum radius of 1 $\mu$m after the 4s-long simulation, we observe a significant population of particles with $r > 1 \,\mu$m and some small number of particles with $r > 1.5\,\mu$m (see inset).  Similarly, at the trailing edge, the last nuclei formed at $\hat{t} = \frac{1}{8}$ should have a radius of 0.875 $\mu$m at $\hat{t}=1$. Instead, Figure~\ref{fig:init_model} shows an appreciable portion of the PSD with $r \leq 0.75 \mu$m.
 
-The errors of the current algorithm are due to homogenization within the spatial mesh: for a bin $i$, the algorithm does not discriminate between particles that are barely larger than $r_i - \frac{\Delta r}{s}$ and those that are barely smaller than $r_i + \frac{\Delta r}{2}$. In any bin, entering particles should be required to grow by $\Delta r$ before they can exit. Instead, homogenization in algorithm 1 dictates that as soon as $N_i > 0$ for a bin $i$, a fraction of the particles are immediately eligible to grow out of the bin and into bin $i+1$. In the trailing bin, the only way all of the particles will leave a bin is if radial growth during a time step, $\frac{dr}{dt}\Delta t$, exceeds $\Delta r$. Otherwise, some fraction of the particles will always remain, reminiscent of Zeno's paradox.
+The errors of this algorithm are due to homogenization within the spatial mesh: for a bin $i$, the algorithm does not discriminate between particles that are barely larger than $r_i - \frac{\Delta r}{s}$ and those that are barely smaller than $r_i + \frac{\Delta r}{2}$. In any bin, entering particles should be required to grow by $\Delta r$ before they can exit. Instead, homogenization in algorithm 1 dictates that as soon as $N_i > 0$ for a bin $i$, a fraction of the particles can immediately grow out of the bin and into bin $i+1$. In the trailing bin, the only way all particles will leave a bin is if  growth during a time step, $\frac{dr}{dt}\Delta t$, exceeds $\Delta r$. Otherwise, some fraction of the particles will always remain, reminiscent of Zeno's paradox.
 
 \subsubsection{Algorithm 2: `Bookmarking' the PSD upper and lower limits}
-To enforce maximum and minimum radii consistent with the model assumptions, algorithm 2 includes leading and trailing ``bookmarks" that track the smallest and largest particle radii, respectively. The leading bookmark $r_\mathrm{lbm}$ prevents particles from prematurely exiting the largest occupied bin and the trailing bookmark $r_\mathrm{tbm}$ prevents particles from remaining in the trailing bin for longer than our pre-defined residence time. Both bookmarks begin at $r_0$ and advance at the rate $\frac{dr}{dt}$. The leading bookmark moves immediately and the trailing bookmark moves once nucleation ceases (this last simplification is for easily interpretable results; a more sophisticated approach for $r_{tbm}$ can readily be implemented, if desired). 
+To enforce maximum and minimum radii consistent with the model assumptions, algorithm 2 includes leading and trailing ``bookmarks" that track the smallest and largest particle radii, respectively, as illustrated in Figure ~\ref{fig:BM_diagram}. The leading bookmark prevents particles from prematurely exiting the largest occupied bin and the trailing bookmark prevents particles from remaining too long in the trailing bin. Both bookmarks begin at $r_0$ and advance at the rate $\frac{dr}{dt}$. The leading bookmark moves immediately and the trailing bookmark moves once nucleation ceases (this last simplification is for easily interpretable results; other approaches can be implemented, if desired). 
 
 Equations~\ref{eq:bin 0 sfd},~\ref{eq:bin i sfd}, and~\ref{eq:bin N sfd} apply to bins with no bookmarks at time $t$. Modifications are required for any bin with a bookmark. The leading bookmark regulates the particle flux leaving the largest occupied bin, referred to as the leading bin. When the leading bookmark moves within a bin, no particles leave the bin. Particles enter from the previous bin as they did in equation \ref{eq:bin i sfd}:
 \begin{equation}
@@ -241,7 +248,7 @@ The trailing bookmark guarantees that particles do not reside in the trailing bi
     \frac{dN_{i+1}}{dt}=\frac{\frac{dr}{dt}}{\Delta r_{\mathrm{bin}}-r_\mathrm{tbm}}N_{i}(t)-\frac{\frac{dr}{dt}}{\Delta r_{\mathrm{bin}}}N_{i+1}(t).
     \label{eq:bin i+1 tbm stays}
 \end{equation}
-When the trailing bookmark approaches a bin's edge, the denominator in equation~\ref{eq:bin i tbm stays} and therefore the residual increase. As with $r_{lbm}$, the algorithm therefore approximates that the trailing bookmark always moves \emph{within} a bin.
+When the trailing bookmark approaches a bin's edge, the denominator in equation~\ref{eq:bin i tbm stays} decreases, leading to smaller time steps. As with $r_{lbm}$, the algorithm approximates that the trailing bookmark always moves \emph{within} a bin.
 
 \begin{figure}
     \centering
@@ -254,19 +261,19 @@ When the trailing bookmark approaches a bin's edge, the denominator in equation~
 \begin{figure}[h]
     \centering
     \includegraphics[scale=1]{figures/PSD_with_bms.pdf}
-    \caption{\textbf{a)} Four PSD snapshots during a simulation using Algorithm 2: `Bookmarks,' and a constant nucleation rate. Bookmarks halt the premature flux of particles shown in Figure ~\ref{fig:init_model}.
-    \textbf{b)} Four snapshots of the PSD during a simulation using Algorithm 2: `Bookmarks,' and a variable nucleation rate. Here, the bookmarks enforce the correct minimum and maximum radius. However, the PSD `flattening' from Figure~\ref{fig:init_model}, while contained by the bookmarks,  still occur within these limits.}
+    \caption{ PSD snapshots during a simulation using Algorithm 2: `Bookmarks.'  \textbf{a)} Constant nucleation rate. Bookmarks halt the premature flux of particles shown in Figure ~\ref{fig:init_model}.
+    \textbf{b)} Variable nucleation rate. Here, the bookmarks enforce the correct minimum and maximum radius. However, the PSD `flattening' from Figure~\ref{fig:init_model}, while contained by the bookmarks,  still occur between these limits.}
     \label{fig:PSD_BM}
 \end{figure}
 The simulation in Figure \ref{fig:PSD_BM}a uses the bookmark approach and a constant nucleation rate. Results show that the bookmarks successfully enforce growth limits at the leading and trailing edges of the PSD. However, the algorithm fails when the nucleation rate varies with time, as shown in Figure \ref{fig:PSD_BM}b. Both simulations have constant growth rates and stopped nucleating at $\hat{t} = \frac{1}{8}$. The profile widths in Figure ~\ref{fig:PSD_BM} are invariant with time. However, the PSD profile still changes with time in Figure ~\ref{fig:PSD_BM}b. As above, the flattening of the PSD within its bounds Figure~\ref{fig:PSD_BM}b stems from the assumption that particles are evenly distributed within bins. 
 
 % ==================== Model 3: Moving Hopper ==================================
 \subsubsection{Algorithm 3: The `moving hopper' model}
-In this study, nucleation is the sole mechanism capable of establishing or altering the PSD shape; growth shifts the entire profile while maintaining constant relative spacing between particle sizes. One way to visualize the deposition process is as a hopper above a conveyor belt. The hopper is positioned at the start of the belt and the nucleation rate determines how many particles flow through the hopper into the bins below. As the particles grow, the conveyor belt moves the bins and their particles to new sizes, while new bins are placed under the hopper to receive new nucleii. This is visualized in Figure \ref{fig:Conveyorbel_Moving_Hopper}a, where the current bins move down the conveyor belt at the growth rate. The radius of particles in the first bin directly under the hopper is $r_\mathrm{nuc}$. The radius of each subsequent bin is calculated by adding $\Delta r_{\rm bin}$ to the radius of the previous bin. However, translating this setup directly into code would require the state variable containing the bins to vary dynamically (the total number of bins changes with time). \\
+In our model, nucleation is the sole mechanism capable of establishing or altering the PSD shape; growth shifts the entire profile while maintaining constant relative spacing between particle sizes. One way to visualize the deposition process is as a hopper above a conveyor belt. The hopper is positioned at the start of the belt and the nucleation rate determines how many particles flow through the hopper into the bins below. As the particles grow, the conveyor belt moves the bins and their particles to new sizes, while new bins appear under the hopper to receive nuclei. This is visualized in Figure \ref{fig:Conveyorbel_Moving_Hopper}a, where bins move down the conveyor belt at the growth rate. The particle radius in the bin directly under the hopper is $r_\mathrm{nuc}$, and each subsequent bin's radius is calculated by adding $\Delta r_{\rm bin}$ to the radius of the previous bin. Translating this concept directly into code, while accurate, would require the number of state variables to vary dynamically. \\
 \begin{figure*}
     \centering
     \includegraphics[scale=0.5]{figures/ConveyorBelt_MovingHopper_Horiz.png}
-    \caption{\textbf{a)} A static hopper deposits particles while bins move on a semi-infinite conveyor belt below. All particles are deposited at the nucleation radius, and grow at the same rate, $\frac{dr}{dt}$. The radius of each bin changes as the particles grow.  \textbf{b)} The simulation is re-envisioned, where hopper moves along semi-infinite tracks above unmoving boxes. The foundational concepts are the same as in a), but this set up is easier to translate into code. The rightmost bin will always have the largest radius, and hopper always deposits particles at the nucleation radius.}
+    \caption{\textbf{a)} A static hopper deposits particles while bins move on a semi-infinite conveyor belt below. All particles are deposited at the nucleation radius, and grow at the same rate, $\frac{dr}{dt}$. The radius of each bin changes as the particles grow.  \textbf{b)} The simulation is re-envisioned, where hopper moves along semi-infinite tracks above unmoving boxes. The foundational concepts are the same as in a), but this set up is easier to translate into code. The leftmost bin will always have the largest radius, and hopper always deposits particles at the nucleation radius.}
     \label{fig:Conveyorbel_Moving_Hopper}
 \end{figure*}
  To avoid dynamically resizing the solution vector, our approach re-envisions the coordinate system such that the deposited particles do not move between bins. Rather, $r_i$, the average radius of particles in any bin $i$ changes with time; $N_i$, the number density of particles in bin $i$ only changes when $r_i = r_{\rm nuc}$.  Figure \ref{fig:Conveyorbel_Moving_Hopper}b illustrates the concept. The `hopper,' indicating the bin where $r_i = r_\mathrm{nuc}$, begins at $i = 0$ at $t_0$, and moves to the right ($i > 0$) at the growth rate $\frac{dr}{dt}$. The number of particles in a bin can only change if the hopper is located over that bin at time $t$ (note that the hopper can also remove particles due to stripping reactions; this is not implemented here, for simplicity). A local coordinate system moves with the hopper, defined by one additional variable: $r_0$ the radius of bin zero at time $t$, which also corresponds to the maximum radius. Because the growth rate does not vary with particle radius in this simulation, all other radii between $0 \leq r_i \leq r_0$ are determined as:
@@ -308,8 +315,6 @@ Author\\
 \textbf{Trent Koberna} - Department of Mechanical Engineering, Colorado School of Mines, Golden, Colorado 80401, United States \bluelink{https://orcid.org/0009-0004-0141-0535}{\orcidlink{0000-0002-3356-8247}\,https://orcid.org/0009-0004-0141-0535} 
 \section{Acknowledgments}
 This work was funded by the U.S. Department of Energy (DOE) grant EE0011168 from the Vehicle Technologies Office (program lead Simon Thompson).
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % References
 \bibliographystyle{unsrt}
 \bibliography{bibliography}

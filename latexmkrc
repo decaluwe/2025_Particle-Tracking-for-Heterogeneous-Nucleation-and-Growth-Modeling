@@ -1,5 +1,7 @@
 add_cus_dep( 'tex', 'aux', 0, 'makeexternaldocument' );
 
+$ENV{'TZ'}='America/Denver'; 
+
 sub makeexternaldocument {
     if (!($root_filename eq $_[0]))
     {
